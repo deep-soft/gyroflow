@@ -164,7 +164,7 @@ jobs:
 
       - name: Save debug symbols
         if: ${{ matrix.targets.type == 'windows' }}
-        uses: actions/upload-artifact@v3
+        uses: deep-soft/upload-artifact@v3
         with:
           name: Gyroflow-debug-symbols
           path: |
