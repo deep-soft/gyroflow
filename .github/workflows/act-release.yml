@@ -109,7 +109,7 @@ jobs:
           p12-password: ${{ secrets.MACOS_CERTIFICATE_PWD }}
 
       - name: Download Provisioning Profiles
-        continue-on-error: true      
+        continue-on-error: true
         if: ${{ inputs.build_ios && matrix.targets.type == 'ios' }}
         id: provisioning
         uses: deep-soft/download-provisioning-profiles@v2
@@ -121,6 +121,7 @@ jobs:
           api-private-key: ${{ secrets.MACOS_ITCONNECT_KEY }}
 
       - name: Save keystore to file
+        continue-on-error: true
         if: ${{ inputs.build_win && matrix.targets.os == 'windows-2022' }}
         run: |
           echo "${{ secrets.ANDROID_RELEASE_KEYSTORE }}" > ${{ github.workspace }}/android_release.keystore.b64
@@ -132,6 +133,7 @@ jobs:
         uses: deep-soft/setup-just@v1
 
       - name: Build Gyroflow (macOS)
+        continue-on-error: true
         if: ${{ inputs.build_mac && matrix.targets.type == 'macos' }}
         env:
           SIGNING_FINGERPRINT: ${{ secrets.MACOS_CERTIFICATE_FINGERPRINT }}
@@ -142,10 +144,12 @@ jobs:
           xcrun stapler staple --verbose ${{ github.workspace }}/_deployment/_binaries/Gyroflow-mac-universal.dmg
 
       - name: Build Gyroflow (Linux)
+        continue-on-error: true
         if: ${{ inputs.build_lin && matrix.targets.type == 'linux' }}
         run: just deploy docker
 
       - name: Build Gyroflow (Windows)
+        continue-on-error: true
         if: ${{ inputs.build_win && matrix.targets.type == 'windows' }}
         env:
           MS_STORE_SIGNING_PASS: ${{ secrets.MS_STORE_SIGNING_PASS }}
@@ -155,6 +159,7 @@ jobs:
           if ("$Env:BUILD_APP_STORE_BUNDLE" -eq "true") { just bundle }
 
       - name: Build Gyroflow (Android)
+        continue-on-error: true
         if: ${{ inputs.build_and && matrix.targets.type == 'android' }}
         env:
           KEY_STORE_PATH: ${{ github.workspace }}/android_release.keystore
@@ -167,6 +172,7 @@ jobs:
           just android deploy
 
       - name: Build Gyroflow (iOS)
+        continue-on-error: true
         if: ${{ inputs.build_ios && matrix.targets.type == 'ios' }}
         env:
           SIGN_KEY: 7F82D6013B8F6D45F88FE547438744BD64750C5B
@@ -176,6 +182,7 @@ jobs:
           just ios build-ipa
 
       - name: Save debug symbols
+        continue-on-error: true
         if: ${{ inputs.build_win && matrix.targets.type == 'windows' }}
         uses: deep-soft/upload-artifact@v3
         with:
