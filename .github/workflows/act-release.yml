@@ -76,7 +76,7 @@ jobs:
 
       - name: Dependencies cache
         id: extcache
-        uses: deep-soft/cache@v3
+        uses: deep-soft/cache@v2
         with:
           path: '${{ github.workspace }}/ext/'
           key: ${{ matrix.targets.type }}-gyroflow-ext-3
