@@ -178,6 +178,8 @@ jobs:
           SIGN_KEY: 7F82D6013B8F6D45F88FE547438744BD64750C5B
           PROVISIONING_PROFILE: /Users/runner/Library/MobileDevice/Provisioning Profiles/${{ matrix.targets.type == 'ios' && fromJSON(steps.provisioning.outputs.profiles)[0].udid || '' }}.mobileprovision
         run: |
+          echo "iOS Provisioning Profiles"
+          echo "/Users/runner/Library/MobileDevice/Provisioning Profiles/${{ matrix.targets.type == 'ios' && fromJSON(steps.provisioning.outputs.profiles)[0].udid || '' }}.mobileprovision"
           just ios install-deps
           just ios build-ipa
 
