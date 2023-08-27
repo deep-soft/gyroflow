@@ -199,6 +199,34 @@ jobs:
           name: Gyroflow-${{ matrix.targets.type }}
           path: _deployment/_binaries/*.*
 
+      - name: Publish
+        uses: deep-soft/action-gh-release@v1
+        with:
+          draft: true
+          tag_name: ${{ env.TAG_NAME_LATEST }}
+          files: ${{ env.PROG_NAME }}*
+
+# zip release begin
+      - name: Create Zip Archive Release
+        uses: deep-soft/zip-release@v2
+        with:
+          type: 'zip'
+          filename: '${{ env.PROG_NAME }}.${{ matrix.target.type }}.zip'
+          directory: '_deployment/_binaries/'
+          exclusions: '*.map *.pdb'
+          recursive_exclusions: ''
+          path: '.'
+        # archive name is ${{ env.ZIP_RELEASE_ARCHIVE }}
+
+      - name: Publish
+        continue-on-error: true
+        uses: deep-soft/action-gh-release@v1
+        with:
+          tag_name: ${{ env.TAG_NAME_LATEST }}
+          files: |
+            ${{ env.ZIP_RELEASE_ARCHIVE }}
+# zip release end
+
   github_release:
     name: Create GitHub release
     needs: build
@@ -207,7 +235,10 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v3
 
-      - run: ls -l
+      - name: list artifacts
+        shell: bash
+        run: |
+          ls -l
 
       - name: Publish
         uses: deep-soft/action-gh-release@v1
@@ -215,7 +246,7 @@ jobs:
         with:
           draft: true
           tag_name: ${{ env.TAG_NAME_LATEST }}
-          files: ${{ env.PROG_NAME }}*
+          files: ./.*
 
       - name: Upload to App Store
         if: ${{ inputs.upload_app_store && inputs.build_ios && startsWith(github.ref, 'refs/tags/') }}
