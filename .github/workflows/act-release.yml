@@ -38,7 +38,7 @@ on:
 env:
   TAG_NAME_RELEASE: release
   TAG_NAME_LATEST: release-latest
-  PROG_NAME: gyroflow
+  PROG_NAME: Gyroflow
   PROG_VERSION: v1.0.0
   
 jobs:
@@ -215,7 +215,7 @@ jobs:
         with:
           draft: true
           tag_name: ${{ env.TAG_NAME_LATEST }}
-          files: ./*
+          files: ${{ env.PROG_NAME }}*
 
       - name: Upload to App Store
         if: ${{ inputs.upload_app_store && inputs.build_ios && startsWith(github.ref, 'refs/tags/') }}
