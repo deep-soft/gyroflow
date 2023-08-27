@@ -210,12 +210,14 @@ jobs:
         run: |
           cd _deployment/_binaries/
           ls -l ${{ env.PROG_NAME }}*
-
+          cd ..
 
 # zip release begin
       - name: Create Zip Archive Release
-        uses: deep-soft/zip-release@v2
+        uses: deep-soft/zip-release@main
+        #uses: deep-soft/zip-release@v2
         with:
+          debug: true
           type: 'zip'
           filename: '${{ env.PROG_NAME }}-${{ matrix.targets.type }}.zip'
           directory: '_deployment/_binaries/'
