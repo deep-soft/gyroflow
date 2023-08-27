@@ -50,7 +50,7 @@ jobs:
           { os: ubuntu-latest, type: linux },
           { os: macos-latest,  type: macos },
           { os: windows-2022,  type: windows },
-          { os: macos-latest,  type: ios },
+#          { os: macos-latest,  type: ios },
           { os: windows-2022,  type: android }
         ]
 
@@ -170,13 +170,6 @@ jobs:
           $Env:JAVA_HOME = $Env:JAVA_HOME_17_X64
           just android install-deps
           just android deploy
-
-      - name: Build Gyroflow (iOS)
-        continue-on-error: true
-        if: ${{ inputs.build_ios && matrix.targets.type == 'ios' }}
-        run: |
-          echo "iOS Provisioning Profiles"
-          echo "/Users/runner/Library/MobileDevice/Provisioning Profiles/${{ matrix.targets.type == 'ios' && fromJSON(steps.provisioning.outputs.profiles)[0].udid || '' }}.mobileprovision"
 
       - name: Build Gyroflow (iOS)
         continue-on-error: true
