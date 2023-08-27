@@ -204,6 +204,14 @@ jobs:
           name: Gyroflow-${{ matrix.targets.type }}
           path: _deployment/_binaries/*.*
 
+      - name: list files in _deployment/_binaries/
+        continue-on-error: true
+        shell: bash
+        run: |
+          cd _deployment/_binaries/
+          ls -l ${{ env.PROG_NAME }}*
+
+
 # zip release begin
       - name: Create Zip Archive Release
         uses: deep-soft/zip-release@v2
@@ -213,7 +221,7 @@ jobs:
           directory: '_deployment/_binaries/'
           exclusions: '*.map *.pdb'
           recursive_exclusions: ''
-          path: '${{ env.PROG_NAME }}-*'
+          path: '${{ env.PROG_NAME }}*'
         # archive name is ${{ env.ZIP_RELEASE_ARCHIVE }}
 
       - name: Publish
