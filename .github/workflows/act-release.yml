@@ -227,7 +227,7 @@ jobs:
 
   github_release:
     name: Create GitHub release
-    if: ${{ env.github_release }}
+    if: ${{ inputs.github_release }}
     needs: build
     runs-on: ubuntu-latest
     steps:
