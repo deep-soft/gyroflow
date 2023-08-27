@@ -29,7 +29,18 @@ on:
         type: boolean
         default: false
         required: true
+      upload_app_store:
+        description: Upload to App Store or Google Play Store
+        type: boolean
+        default: false
+        required: true
 
+env:
+  TAG_NAME_RELEASE: release
+  TAG_NAME_LATEST: release-latest
+  PROG_NAME: gyroflow
+  PROG_VERSION: v1.0.0
+  
 jobs:
   build:
     strategy:
@@ -90,6 +101,7 @@ jobs:
           rm -r -force ${{ github.workspace }}/target/release/build/qml-video-rs* -ErrorAction SilentlyContinue
 
       - name: Install Mac certificate
+        continue-on-error: true
         if: ${{ inputs.build_mac }} && ${{ matrix.targets.os == 'macos-latest' }}
         uses: deep-soft/import-codesign-certs@v2
         with:
@@ -97,6 +109,7 @@ jobs:
           p12-password: ${{ secrets.MACOS_CERTIFICATE_PWD }}
 
       - name: Download Provisioning Profiles
+        continue-on-error: true      
         if: ${{ inputs.build_ios }} && ${{ matrix.targets.type == 'ios' }}
         id: provisioning
         uses: deep-soft/download-provisioning-profiles@v2
@@ -191,16 +204,18 @@ jobs:
         uses: deep-soft/action-gh-release@v1
         # if: startsWith(github.ref, 'refs/tags/')
         with:
-         files: ./*
+          draft: true
+          tag_name: ${{ env.TAG_NAME_LATEST }}
+          files: ./*
 
       - name: Upload to App Store
-        if: ${{ inputs.build_ios }} && startsWith(github.ref, 'refs/tags/')
+        if: ${{ inputs.upload_app_store }} && ${{ inputs.build_ios }} && startsWith(github.ref, 'refs/tags/')
         run: |
           xcrun altool --upload-app -f ${{ github.workspace }}/_deployment/_binaries/Gyroflow.ipa -t iOS -u ${{ secrets.MACOS_ACCOUNT_USER }} -p ${{ secrets.MACOS_ACCOUNT_PASS }}
 
       - name: Upload to Google Play
         uses: r0adkll/upload-google-play@v1
-        if: ${{ inputs.build_and }} && startsWith(github.ref, 'refs/tags/')
+        if: ${{ inputs.upload_app_store }} && ${{ inputs.build_and }} && startsWith(github.ref, 'refs/tags/')
         with:
           serviceAccountJsonPlainText: ${{ secrets.ANDROID_SERVICE_ACCOUNT_JSON }}
           packageName: xyz.gyroflow
