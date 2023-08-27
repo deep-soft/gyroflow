@@ -95,14 +95,14 @@ jobs:
           rm -rf ${{ github.workspace }}/target/deploy/build/qml-video-rs*
 
       - name: Force qml-video-rs rebuild (Win)
-        if: ${{ inputs.build_win }} && ${{ matrix.targets.os == 'windows-2022' }}
+        if: ${{ inputs.build_win && matrix.targets.os == 'windows-2022' }}
         run: |
           rm -r -force ${{ github.workspace }}/target/deploy/build/qml-video-rs* -ErrorAction SilentlyContinue
           rm -r -force ${{ github.workspace }}/target/release/build/qml-video-rs* -ErrorAction SilentlyContinue
 
       - name: Install Mac certificate
         continue-on-error: true
-        if: ${{ inputs.build_mac }} && ${{ matrix.targets.os == 'macos-latest' }}
+        if: ${{ inputs.build_mac && matrix.targets.os == 'macos-latest' }}
         uses: deep-soft/import-codesign-certs@v2
         with:
           p12-file-base64: ${{ matrix.targets.type == 'ios' && secrets.MAC_APPSTORE_CERTIFICATE || secrets.MACOS_CERTIFICATE }}
@@ -110,7 +110,7 @@ jobs:
 
       - name: Download Provisioning Profiles
         continue-on-error: true      
-        if: ${{ inputs.build_ios }} && ${{ matrix.targets.type == 'ios' }}
+        if: ${{ inputs.build_ios && matrix.targets.type == 'ios' }}
         id: provisioning
         uses: deep-soft/download-provisioning-profiles@v2
         with:
@@ -121,7 +121,7 @@ jobs:
           api-private-key: ${{ secrets.MACOS_ITCONNECT_KEY }}
 
       - name: Save keystore to file
-        if: ${{ inputs.build_win }} && ${{ matrix.targets.os == 'windows-2022' }}
+        if: ${{ inputs.build_win && matrix.targets.os == 'windows-2022' }}
         run: |
           echo "${{ secrets.ANDROID_RELEASE_KEYSTORE }}" > ${{ github.workspace }}/android_release.keystore.b64
           echo "${{ secrets.MS_STORE_SIGNING_KEY }}" > ${{ github.workspace }}/_deployment/windows/msix_signing_key.pfx.b64
@@ -132,7 +132,7 @@ jobs:
         uses: deep-soft/setup-just@v1
 
       - name: Build Gyroflow (macOS)
-        if: ${{ inputs.build_mac }} && ${{ matrix.targets.type == 'macos' }}
+        if: ${{ inputs.build_mac && matrix.targets.type == 'macos' }}
         env:
           SIGNING_FINGERPRINT: ${{ secrets.MACOS_CERTIFICATE_FINGERPRINT }}
         run: |
@@ -142,11 +142,11 @@ jobs:
           xcrun stapler staple --verbose ${{ github.workspace }}/_deployment/_binaries/Gyroflow-mac-universal.dmg
 
       - name: Build Gyroflow (Linux)
-        if: ${{ inputs.build_lin }} && ${{ matrix.targets.type == 'linux' }}
+        if: ${{ inputs.build_lin && matrix.targets.type == 'linux' }}
         run: just deploy docker
 
       - name: Build Gyroflow (Windows)
-        if: ${{ inputs.build_win }} && ${{ matrix.targets.type == 'windows' }}
+        if: ${{ inputs.build_win && matrix.targets.type == 'windows' }}
         env:
           MS_STORE_SIGNING_PASS: ${{ secrets.MS_STORE_SIGNING_PASS }}
         run: |
@@ -155,7 +155,7 @@ jobs:
           if ("$Env:BUILD_APP_STORE_BUNDLE" -eq "true") { just bundle }
 
       - name: Build Gyroflow (Android)
-        if: ${{ inputs.build_and }} && ${{ matrix.targets.type == 'android' }}
+        if: ${{ inputs.build_and && matrix.targets.type == 'android' }}
         env:
           KEY_STORE_PATH: ${{ github.workspace }}/android_release.keystore
           KEY_STORE_ALIAS: ${{ secrets.ANDROID_RELEASE_KEYSTORE_ALIAS }}
@@ -167,7 +167,7 @@ jobs:
           just android deploy
 
       - name: Build Gyroflow (iOS)
-        if: ${{ inputs.build_ios }} && ${{ matrix.targets.type == 'ios' }}
+        if: ${{ inputs.build_ios && matrix.targets.type == 'ios' }}
         env:
           SIGN_KEY: 7F82D6013B8F6D45F88FE547438744BD64750C5B
           PROVISIONING_PROFILE: /Users/runner/Library/MobileDevice/Provisioning Profiles/${{ matrix.targets.type == 'ios' && fromJSON(steps.provisioning.outputs.profiles)[0].udid || '' }}.mobileprovision
@@ -176,7 +176,7 @@ jobs:
           just ios build-ipa
 
       - name: Save debug symbols
-        if: ${{ inputs.build_win }} && ${{ matrix.targets.type == 'windows' }}
+        if: ${{ inputs.build_win && matrix.targets.type == 'windows' }}
         uses: deep-soft/upload-artifact@v3
         with:
           name: Gyroflow-debug-symbols
@@ -209,13 +209,13 @@ jobs:
           files: ./*
 
       - name: Upload to App Store
-        if: ${{ inputs.upload_app_store }} && ${{ inputs.build_ios }} && startsWith(github.ref, 'refs/tags/')
+        if: ${{ inputs.upload_app_store && inputs.build_ios && startsWith(github.ref, 'refs/tags/')
         run: |
           xcrun altool --upload-app -f ${{ github.workspace }}/_deployment/_binaries/Gyroflow.ipa -t iOS -u ${{ secrets.MACOS_ACCOUNT_USER }} -p ${{ secrets.MACOS_ACCOUNT_PASS }}
 
       - name: Upload to Google Play
         uses: r0adkll/upload-google-play@v1
-        if: ${{ inputs.upload_app_store }} && ${{ inputs.build_and }} && startsWith(github.ref, 'refs/tags/')
+        if: ${{ inputs.upload_app_store && inputs.build_and && startsWith(github.ref, 'refs/tags/')
         with:
           serviceAccountJsonPlainText: ${{ secrets.ANDROID_SERVICE_ACCOUNT_JSON }}
           packageName: xyz.gyroflow
