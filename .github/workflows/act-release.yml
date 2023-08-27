@@ -29,6 +29,11 @@ on:
         type: boolean
         default: false
         required: true
+      github_release:
+        description: github release
+        type: boolean
+        default: false
+        required: true
       upload_app_store:
         description: Upload to App Store or Google Play Store
         type: boolean
@@ -199,23 +204,16 @@ jobs:
           name: Gyroflow-${{ matrix.targets.type }}
           path: _deployment/_binaries/*.*
 
-      - name: Publish
-        uses: deep-soft/action-gh-release@v1
-        with:
-          draft: true
-          tag_name: ${{ env.TAG_NAME_LATEST }}
-          files: ${{ env.PROG_NAME }}*
-
 # zip release begin
       - name: Create Zip Archive Release
         uses: deep-soft/zip-release@v2
         with:
           type: 'zip'
-          filename: '${{ env.PROG_NAME }}.${{ matrix.target.type }}.zip'
+          filename: '${{ env.PROG_NAME }}-${{ matrix.targets.type }}.zip'
           directory: '_deployment/_binaries/'
           exclusions: '*.map *.pdb'
           recursive_exclusions: ''
-          path: '.'
+          path: '${{ env.PROG_NAME }}-*'
         # archive name is ${{ env.ZIP_RELEASE_ARCHIVE }}
 
       - name: Publish
@@ -229,6 +227,7 @@ jobs:
 
   github_release:
     name: Create GitHub release
+    if: ${{ env.github_release }}
     needs: build
     runs-on: ubuntu-latest
     steps:
