@@ -213,18 +213,17 @@ jobs:
           cd ..
 
 # zip release begin
-      - name: Create Zip Archive Release
-        uses: deep-soft/zip-release@main
-        #uses: deep-soft/zip-release@v2
-        with:
-          debug: true
-          type: 'zip'
-          filename: '${{ env.PROG_NAME }}-${{ matrix.targets.type }}.zip'
-          directory: '_deployment/_binaries/'
-          exclusions: '*.map *.pdb'
-          recursive_exclusions: ''
-          path: '${{ env.PROG_NAME }}*'
-        # archive name is ${{ env.ZIP_RELEASE_ARCHIVE }}
+#      - name: Create Zip Archive Release
+#        uses: deep-soft/zip-release@main
+#        #uses: deep-soft/zip-release@v2
+#        with:
+#          type: 'zip'
+#          filename: '${{ env.PROG_NAME }}-${{ matrix.targets.type }}.zip'
+#          directory: '_deployment/_binaries/'
+#          exclusions: '*.map *.pdb'
+#          recursive_exclusions: ''
+#          path: '${{ env.PROG_NAME }}*'
+#        # archive name is ${{ env.ZIP_RELEASE_ARCHIVE }}
 
       - name: Publish
         continue-on-error: true
@@ -233,6 +232,7 @@ jobs:
           tag_name: ${{ env.TAG_NAME_LATEST }}
           files: |
             ${{ env.ZIP_RELEASE_ARCHIVE }}
+            _deployment/_binaries/${{ env.PROG_NAME }}*.*
 # zip release end
 
   github_release:
