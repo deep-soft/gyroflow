@@ -1,0 +1,34 @@
+name: test vulkan
+on:
+  workflow_dispatch:
+
+jobs:
+  build_win:
+    runs-on: windows-latest
+    steps:
+      - name: Prepare Vulkan SDK
+        uses: deep-soft/setup-vulkan-sdk@v1.2.0
+        with:
+          vulkan-query-version: 1.3.204.0
+          vulkan-components: Vulkan-Headers
+          vulkan-use-cache: true
+
+  build_lin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare Vulkan SDK
+        uses: deep-soft/setup-vulkan-sdk@v1.2.0
+        with:
+          vulkan-query-version: 1.3.204.0
+          vulkan-components: Vulkan-Headers
+          vulkan-use-cache: true
+
+  build_mac:
+    runs-on: macos-latest
+    steps:
+      - name: Prepare Vulkan SDK
+        uses: deep-soft/setup-vulkan-sdk@v1.2.0
+        with:
+          vulkan-query-version: 1.3.204.0
+          vulkan-components: Vulkan-Headers
+          vulkan-use-cache: true
