@@ -94,7 +94,7 @@ impl<'a> VideoTranscoder<'a> {
         let mut ost = octx.stream_mut(output_index).unwrap();
         let encoder_codec = params.codec.unwrap();
 
-        let mut options = params.options.to_owned();
+        let options = params.options.to_owned();
 
         let ctx_ptr = unsafe { ffi::avcodec_alloc_context3(encoder_codec.as_ptr()) };
         let context = unsafe { codec::context::Context::wrap(ctx_ptr, Some(std::rc::Rc::new(0))) };
@@ -118,7 +118,9 @@ impl<'a> VideoTranscoder<'a> {
         encoder.set_time_base(params.time_base.unwrap());
         let bitrate = bitrate_mbps.map(|x| (x * 1024.0*1024.0) as usize).unwrap_or_else(|| decoder.bit_rate());
         encoder.set_bit_rate(bitrate);
-        encoder.set_max_bit_rate(bitrate);
+        if !codec_name.contains("videotoolbox") {
+            encoder.set_max_bit_rate(bitrate);
+        }
         unsafe {
             (*encoder.as_mut_ptr()).rc_min_rate = bitrate as i64;
         }

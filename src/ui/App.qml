@@ -508,7 +508,7 @@ Rectangle {
         });
     }
 
-    function messageBox(type: int, text: string, buttons: list, parent: QtObject, textFormat: int, identifier: string): Modal {
+    function messageBox(type: int, text: string, buttons: list<var>, parent: QtObject, textFormat: int, identifier: string): Modal {
         if (typeof textFormat === "undefined") textFormat = Text.AutoText; // default
 
         let el = null;
@@ -676,6 +676,9 @@ Rectangle {
         if (text.includes("hevc") && text.includes("-12912")) {
             return qsTr("Your GPU doesn't support H.265/HEVC encoding, try to use H.264/AVC or disable GPU encoding in Export settings.");
         }
+        if (text.includes("failed to decode picture") && text.includes("-12909")) {
+            return qsTr("GPU decoder failed to decode this file. Disable GPU decoding in \"Advanced\" and try again.") + "\n\n" + text;
+        }
         if (text.includes("codec not currently supported in container")) {
             return qsTr("Make sure your output extension supports the selected codec. \".mov\" should work in most cases.") + "\n\n" + text;
         }
@@ -686,7 +689,7 @@ Rectangle {
         return text.trim();
     }
 
-    function renameOutput(filename: name, folderUrl: url) {
+    function renameOutput(filename: string, folderUrl: url) {
         let newName = filename;
         for (let i = 1; i < 1000; ++i) {
             newName = filename.replace(/(_\d+)?((?:_%05d)?\.[a-z0-9]+)$/i, "_" + i + "$2");
@@ -706,7 +709,7 @@ Rectangle {
         ui_tools.set_progress(progress);
     }
 
-    function getAdditionalProjectData(): object {
+    function getAdditionalProjectData() {
         return {
             "output": exportSettings.item.getExportOptions(),
             "synchronization": sync.item.getSettings(),

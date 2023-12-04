@@ -94,7 +94,11 @@ impl MDKProcessor {
             if let Some(ref mut cb) = cb {
                 let timestamp_us = (timestamp_ms * 1000.0).round() as i64;
                 if ffmpeg_frame.is_none() {
-                    ffmpeg_frame = Some(ffmpeg_next::frame::Video::new(format, width, height));
+                    let mut frame = ffmpeg_next::frame::Video::empty();
+                    frame.set_format(format);
+                    frame.set_width(width);
+                    frame.set_height(height);
+                    ffmpeg_frame = Some(frame);
                 }
                 let ffmpeg_frame = ffmpeg_frame.as_mut().unwrap();
 
