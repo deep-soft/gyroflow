@@ -71,7 +71,7 @@ jobs:
         uses: deep-soft/rust-toolchain@master
         with:
           toolchain: stable
-          profile: minimal
+          # profile: minimal
           # override: true
 
       - name: Rust cache
