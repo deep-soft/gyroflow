@@ -112,7 +112,6 @@ impl BackendType {
 #[derive(Default)]
 pub struct Stabilization {
     pub stab_data: BTreeMap<i64, FrameTransform>,
-    last_frame_data: RefCell<FrameTransform>,
 
     size:        (usize, usize), // width, height
     output_size: (usize, usize), // width, height
@@ -123,7 +122,7 @@ pub struct Stabilization {
     #[cfg(feature = "use-opencl")]
     cl: Option<opencl::OclWrapper>,
 
-    wgpu: Option<wgpu::WgpuWrapper>,
+    pub wgpu: Option<wgpu::WgpuWrapper>,
 
     pub initialized_backend: BackendType,
 
@@ -167,7 +166,7 @@ impl Stabilization {
         ret
     }
 
-    pub fn get_frame_transform_at<T: PixelType>(&mut self, timestamp_us: i64, buffers: &mut Buffers) -> FrameTransform {
+    pub fn get_frame_transform_at<T: PixelType>(&mut self, timestamp_us: i64, buffers: &Buffers) -> FrameTransform {
         let timestamp_ms = (timestamp_us as f64) / 1000.0;
         let frame = crate::frame_at_timestamp(timestamp_ms, self.compute_params.scaled_fps) as usize; // Only for FOVs
 
@@ -362,76 +361,71 @@ impl Stabilization {
 
         if current_hash != hash {
             self.initialized_backend = BackendType::None;
-            if let Some(itm) = self.stab_data.get(&timestamp_us) {
-                let params = itm.kernel_params;
-                let canvas_len = self.drawing.get_buffer_len();
-                #[allow(unused_mut)]
-                let mut next_backend = self.next_backend.take().unwrap_or_default();
+            let params = self.get_frame_transform_at::<T>(timestamp_us, buffers).kernel_params;
+            let canvas_len = self.drawing.get_buffer_len();
+            #[allow(unused_mut)]
+            let mut next_backend = self.next_backend.take().unwrap_or_default();
 
-                #[cfg(feature = "use-opencl")]
-                if std::env::var("NO_OPENCL").unwrap_or_default().is_empty() && next_backend != "wgpu" && opencl::is_buffer_supported(buffers) {
-                    self.cl = None;
+            #[cfg(feature = "use-opencl")]
+            if std::env::var("NO_OPENCL").unwrap_or_default().is_empty() && next_backend != "wgpu" && opencl::is_buffer_supported(buffers) {
+                self.cl = None;
+                let distortion_model = self.compute_params.distortion_model.clone();
+                let digital_lens = self.compute_params.digital_lens.clone();
+                let cl = std::panic::catch_unwind(|| {
+                    opencl::OclWrapper::new(&params, T::ocl_names(), distortion_model, digital_lens, buffers, canvas_len)
+                });
+                match cl {
+                    Ok(Ok(cl)) => {
+                        self.cl = Some(cl);
+                        self.initialized_backend = BackendType::OpenCL(hash);
+                        log::info!("Initialized OpenCL for {:?} -> {:?}", buffers.input.size, buffers.output.size);
+                    },
+                    Ok(Err(e)) => { next_backend = ""; log::error!("OpenCL error init_backends: {:?}", e); },
+                    Err(e) => {
+                        next_backend = "";
+                        if let Some(s) = e.downcast_ref::<&str>() {
+                            log::error!("Failed to initialize OpenCL {}", s);
+                        } else if let Some(s) = e.downcast_ref::<String>() {
+                            log::error!("Failed to initialize OpenCL {}", s);
+                        } else {
+                            log::error!("Failed to initialize OpenCL {:?}", e);
+                        }
+                    }
+                }
+            }
+            if self.initialized_backend.is_none() && T::wgpu_format().is_some() && next_backend != "opencl" && std::env::var("NO_WGPU").unwrap_or_default().is_empty() && wgpu::is_buffer_supported(buffers) {
+                if !self.share_wgpu_instances || CACHED_WGPU.with(|x| x.borrow_mut().get(&hash).is_none()) {
+                    self.wgpu = None;
                     let distortion_model = self.compute_params.distortion_model.clone();
                     let digital_lens = self.compute_params.digital_lens.clone();
-                    let cl = std::panic::catch_unwind(|| {
-                        opencl::OclWrapper::new(&params, T::ocl_names(), distortion_model, digital_lens, buffers, canvas_len)
+                    let wgpu = std::panic::catch_unwind(|| {
+                        wgpu::WgpuWrapper::new(&params, T::wgpu_format().unwrap(), distortion_model, digital_lens, buffers, canvas_len)
                     });
-                    match cl {
-                        Ok(Ok(cl)) => {
-                            self.cl = Some(cl);
-                            self.initialized_backend = BackendType::OpenCL(hash);
-                            log::info!("Initialized OpenCL for {:?} -> {:?}", buffers.input.size, buffers.output.size);
-                        },
-                        Ok(Err(e)) => { next_backend = ""; log::error!("OpenCL error init_backends: {:?}", e); },
-                        Err(e) => {
-                            next_backend = "";
-                            if let Some(s) = e.downcast_ref::<&str>() {
-                                log::error!("Failed to initialize OpenCL {}", s);
-                            } else if let Some(s) = e.downcast_ref::<String>() {
-                                log::error!("Failed to initialize OpenCL {}", s);
+                    match wgpu {
+                        Ok(Ok(wgpu)) => {
+                            if self.share_wgpu_instances {
+                                CACHED_WGPU.with(|x| x.borrow_mut().put(hash, wgpu));
                             } else {
-                                log::error!("Failed to initialize OpenCL {:?}", e);
+                                self.wgpu = Some(wgpu);
                             }
-                        }
-                    }
-                }
-                if self.initialized_backend.is_none() && T::wgpu_format().is_some() && next_backend != "opencl" && std::env::var("NO_WGPU").unwrap_or_default().is_empty() && wgpu::is_buffer_supported(buffers) {
-                    if !self.share_wgpu_instances || CACHED_WGPU.with(|x| x.borrow_mut().get(&hash).is_none()) {
-                        self.wgpu = None;
-                        let distortion_model = self.compute_params.distortion_model.clone();
-                        let digital_lens = self.compute_params.digital_lens.clone();
-                        let wgpu = std::panic::catch_unwind(|| {
-                            wgpu::WgpuWrapper::new(&params, T::wgpu_format().unwrap(), distortion_model, digital_lens, buffers, canvas_len)
-                        });
-                        match wgpu {
-                            Ok(Ok(wgpu)) => {
-                                if self.share_wgpu_instances {
-                                    CACHED_WGPU.with(|x| x.borrow_mut().put(hash, wgpu));
-                                } else {
-                                    self.wgpu = Some(wgpu);
-                                }
-                                self.initialized_backend = BackendType::Wgpu(hash);
-                                log::info!("Initialized wgpu for {:?} -> {:?} | key: {}", buffers.input.size, buffers.output.size, self.get_current_key(buffers));
-                            },
-                            Ok(Err(e)) => { log::error!("Failed to initialize wgpu {:?}", e); if self.share_wgpu_instances { CACHED_WGPU.with(|x| x.borrow_mut().clear()) } },
-                            Err(e) => {
-                                if let Some(s) = e.downcast_ref::<&str>() {
-                                    log::error!("Failed to initialize wgpu {}", s);
-                                } else if let Some(s) = e.downcast_ref::<String>() {
-                                    log::error!("Failed to initialize wgpu {}", s);
-                                } else {
-                                    log::error!("Failed to initialize wgpu {:?}", e);
-                                }
-                                if self.share_wgpu_instances { CACHED_WGPU.with(|x| x.borrow_mut().clear()); }
-                            },
-                        }
+                            self.initialized_backend = BackendType::Wgpu(hash);
+                            log::info!("Initialized wgpu for {:?} -> {:?} | key: {}", buffers.input.size, buffers.output.size, self.get_current_key(buffers));
+                        },
+                        Ok(Err(e)) => { log::error!("Failed to initialize wgpu {:?}", e); if self.share_wgpu_instances { CACHED_WGPU.with(|x| x.borrow_mut().clear()) } },
+                        Err(e) => {
+                            if let Some(s) = e.downcast_ref::<&str>() {
+                                log::error!("Failed to initialize wgpu {}", s);
+                            } else if let Some(s) = e.downcast_ref::<String>() {
+                                log::error!("Failed to initialize wgpu {}", s);
+                            } else {
+                                log::error!("Failed to initialize wgpu {:?}", e);
+                            }
+                            if self.share_wgpu_instances { CACHED_WGPU.with(|x| x.borrow_mut().clear()); }
+                        },
                     }
                 }
             }
-            if current_hash != self.initialized_backend.get_hash() && !self.stab_data.is_empty() {
-                log::info!("Clearing {} stab data because backend was initialized", self.stab_data.len());
-                self.stab_data.clear();
-            }
+
         }
     }
 
@@ -441,8 +435,8 @@ impl Stabilization {
             self.update_device(dev, buffers);
         }
 
-        self.ensure_stab_data_at_timestamp::<T>(timestamp_us, buffers, false);
         self.init_backends::<T>(timestamp_us, buffers);
+        self.ensure_stab_data_at_timestamp::<T>(timestamp_us, buffers, false);
 
         if self.share_wgpu_instances && CACHED_WGPU.with(|x| !x.borrow().is_empty()) {
             let hash = self.get_current_checksum(buffers);
@@ -459,14 +453,7 @@ impl Stabilization {
     pub fn process_pixels<T: PixelType>(&self, timestamp_us: i64, buffers: &mut Buffers, frame_transform: Option<&FrameTransform>) -> Result<ProcessedInfo, GyroflowCoreError> {
         if /*self.size != buffers.input.size || */buffers.input.size.1 < 4 || buffers.output.size.1 < 4 { return Err(GyroflowCoreError::SizeTooSmall); }
 
-        let mut _last_frame_data = None;
-
-        let itm = frame_transform.map(|x| Some(x)).unwrap_or_else(|| if self.stab_data.contains_key(&timestamp_us) {
-            self.stab_data.get(&timestamp_us)
-        } else {
-            _last_frame_data = Some(self.last_frame_data.borrow().clone());
-            _last_frame_data.as_ref()
-        });
+        let itm = frame_transform.map(|x| Some(x)).unwrap_or_else(|| self.stab_data.get(&timestamp_us));
 
         if let Some(itm) = itm {
             let mut ret = ProcessedInfo {
@@ -476,11 +463,6 @@ impl Stabilization {
                 backend: ""
             };
             let drawing_buffer = self.drawing.get_buffer();
-            if frame_transform.is_none() {
-                if let Ok(mut last_frame_data) = self.last_frame_data.try_borrow_mut() {
-                    *last_frame_data = itm.clone();
-                }
-            }
 
             if self.size        != (itm.kernel_params.width        as usize, itm.kernel_params.height        as usize) { return Err(GyroflowCoreError::SizeMismatch(self.size, (itm.kernel_params.width        as usize, itm.kernel_params.height        as usize))); }
             if self.output_size != (itm.kernel_params.output_width as usize, itm.kernel_params.output_height as usize) { return Err(GyroflowCoreError::SizeMismatch(self.size, (itm.kernel_params.output_width as usize, itm.kernel_params.output_height as usize))); }
